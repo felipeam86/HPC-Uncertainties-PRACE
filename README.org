@@ -1,5 +1,5 @@
-**Work in progress !!**
+*Work in progress !!*
 
 These slides will be used for the HPC and Uncertainty Treatment course that will be held at la 'Maison de la Simulation'. Paris, France - 17-19 may 2015
 
-This is my first experience with reveal.js and github pages, which is why I uploaded an unfinished version of the slides, to do some tests. The final version of the slides will be ready for the 17th of may.
+This is my first experience with reveal.js and github pages, which is why I uploaded an unfinished version of the slides, to do some tests. /The final version of the slides will be ready for the 17th of may./
