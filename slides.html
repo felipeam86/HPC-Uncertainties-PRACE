@@ -36,10 +36,14 @@
 <div id="text-table-of-contents">
 <ul>
 <li><a href="#/slide-orgheadline1">1. Introduction</a></li>
-<li><a href="#/slide-orgheadline2">2. What makes a killer wrapper ?</a></li>
-<li><a href="#/slide-orgheadline3">3. Basic skeleton of a wrapper</a></li>
-<li><a href="#/slide-orgheadline4">4. Creating a CLI for your wrapper</a></li>
-<li><a href="#/slide-orgheadline5">5. Thank you for your attention</a></li>
+<li><a href="#/slide-orgheadline2">2. What makes a good wrapper ?</a></li>
+<li><a href="#/slide-orgheadline7">3. Basic skeleton of a wrapper</a></li>
+<li><a href="#/slide-orgheadline8">4. Managing backups of input/output data</a></li>
+<li><a href="#/slide-orgheadline9">5. Catch exceptions when your code fails</a></li>
+<li><a href="#/slide-orgheadline10">6. Creating a CLI for your wrapper</a></li>
+<li><a href="#/slide-orgheadline11">7. Parallelizing the wrapper</a></li>
+<li><a href="#/slide-orgheadline12">8. Conclusion</a></li>
+<li><a href="#/slide-orgheadline13">9. Thank you for your attention</a></li>
 </ul>
 </div>
 </div>
@@ -50,20 +54,22 @@
 <section id="slide-orgheadline1">
 <h2 id="orgheadline1"><span class="section-number-2">1</span> Introduction</h2>
 <ul>
-<li class="fragment appear">What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.</li>
-<li class="fragment appear">A good wrapper can be parallelized</li>
-<li class="fragment appear">Objective of this presentation &#x2013;&gt; Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.</li>
-<li class="fragment appear">It is based on the module <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> available at <a href="https://github.com/felipeam86/otwrapy">GitHub</a></li>
+<li>What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.</li>
+<li>A good wrapper can be parallelized</li>
+<li>Objective of this presentation &#x2013;&gt; Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.</li>
+<li>It is based on the module <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> available at <a href="https://github.com/felipeam86/otwrapy">GitHub</a>. Proudly develloped at <a href="http://www.phimeca.com/">Phimeca engineering</a>.</li>
+<li>A good working example can be found on the  <a href="https://github.com/felipeam86/otwrapy/tree/master/otwrapy/examples/beam">otwrapy repository</a>.</li>
 
 </ul>
+
 </section>
 </section>
 <section>
 <section id="slide-orgheadline2">
-<h2 id="orgheadline2"><span class="section-number-2">2</span> What makes a killer wrapper ?</h2>
+<h2 id="orgheadline2"><span class="section-number-2">2</span> What makes a good wrapper ?</h2>
 <ul>
 <li>It catches and logs errors for easy debugging.</li>
-<li>It can either run or simply prepare runs - usefull when running on clusters.</li>
+<li>It can either run or simply prepare runs &#x2013;&gt; usefull when running on clusters.</li>
 <li>It is distributed and avoids conflict between runs.</li>
 <li><p>
 You can use it as a script (argsparse module):
@@ -91,8 +97,8 @@ All of this  might seem complex, but wrappers are repetitive and <a href="http:/
 </section>
 </section>
 <section>
-<section id="slide-orgheadline3">
-<h2 id="orgheadline3"><span class="section-number-2">3</span> Basic skeleton of a wrapper</h2>
+<section id="slide-orgheadline7">
+<h2 id="orgheadline7"><span class="section-number-2">3</span> Basic skeleton of a wrapper</h2>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
@@ -112,19 +118,172 @@ All of this  might seem complex, but wrappers are repetitive and <a href="http:/
         <span style="color: #E6DB74;">"""Run the model in the shell for the input vector X</span>
 <span style="color: #E6DB74;">        """</span>
 
-        <span style="color: #E6DB74;">"""</span>
-<span style="color: #E6DB74;">        Launch the code and recuperate the output</span>
-<span style="color: #E6DB74;">        """</span>
+        <span style="color: #75715E;"># Move to temp work dir. Cleanup at the end</span>
+        <span style="color: #F92672;">with</span> otw.TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
+            <span style="color: #75715E;"># Create input file</span>
+            <span style="color: #F92672;">self</span>._create_input_file(X)
+            <span style="color: #75715E;"># Execute code</span>
+            <span style="color: #F8F8F2; background-color: #272822;">runtime</span> = <span style="color: #F92672;">self</span>._call(X)
+            <span style="color: #75715E;"># Retrieve output (see also ot.coupling_tools.get_value)</span>
+            <span style="color: #F8F8F2; background-color: #272822;">Y</span> = <span style="color: #F92672;">self</span>._parse_output()
 
         <span style="color: #F92672;">return</span> Y
 </pre>
 </div>
 
 </section>
+<section id="slide-orgheadline3">
+<h3 id="orgheadline3"><span class="section-number-3">3.1</span> Temporary working directory</h3>
+<p>
+Efficiently and safely manage working on temporary directories with a context manager &#x2013;&gt; <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir">otwrapy.TempWorkDir</a>
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">TempWorkDir</span>(object):
+    <span style="color: #E6DB74;">"""Implement a context manager that creates a temporary working directory.</span>
+<span style="color: #E6DB74;">    """</span>
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__init__</span>(<span style="color: #F92672;">self</span>, <span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">False</span>):
+        <span style="color: #F92672;">self</span>.dirname = mkdtemp(<span style="color: #F8F8F2; background-color: #272822;">dir</span>=<span style="color: #E6DB74;">'/tmp'</span>)
+        <span style="color: #F92672;">self</span>.cleanup = cleanup
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__enter__</span>(<span style="color: #F92672;">self</span>):
+        <span style="color: #F92672;">self</span>.curdir = os.getcwd()
+        os.chdir(<span style="color: #F92672;">self</span>.dirname)
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__exit__</span>(<span style="color: #F92672;">self</span>, <span style="color: #F92672;">type</span>, value, traceback):
+        os.chdir(<span style="color: #F92672;">self</span>.curdir)
+        <span style="color: #F92672;">if</span> <span style="color: #F92672;">self</span>.cleanup:
+            shutil.rmtree(<span style="color: #F92672;">self</span>.dirname)
+
+
+<span style="color: #F92672;">with</span> TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
+    <span style="color: #E6DB74;">"""</span>
+<span style="color: #E6DB74;">    ...</span>
+<span style="color: #E6DB74;">    Do stuff</span>
+<span style="color: #E6DB74;">    ...</span>
+<span style="color: #E6DB74;">    """</span>
+</pre>
+</div>
+
+</section>
+<section id="slide-orgheadline4">
+<h3 id="orgheadline4"><span class="section-number-3">3.2</span> Create input file</h3>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_create_input_file</span>(<span style="color: #F92672;">self</span>, X):
+    <span style="color: #E6DB74;">"""Create the input file required by the code.</span>
+<span style="color: #E6DB74;">    """</span>
+    ot.coupling_tools.replace(
+        <span style="color: #E6DB74;">'input_templatefile.xml'</span>,
+        <span style="color: #E6DB74;">'input.xml'</span>,
+        [<span style="color: #E6DB74;">'@X1'</span>,<span style="color: #E6DB74;">'X2'</span>,<span style="color: #E6DB74;">'@X3'</span>,<span style="color: #E6DB74;">'@X4'</span>],
+        X)
+</pre>
+</div>
+
+</section>
+<section id="slide-orgheadline5">
+<h3 id="orgheadline5"><span class="section-number-3">3.3</span> Execute code</h3>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_call</span>(<span style="color: #F92672;">self</span>):
+    <span style="color: #E6DB74;">"""Execute code on the shell</span>
+<span style="color: #E6DB74;">    """</span>
+
+    <span style="color: #F8F8F2; background-color: #272822;">time_start</span> = time.time()
+    ot.coupling_tools.execute(<span style="color: #E6DB74;">'/path/to/executable -x input.xml'</span>)
+    <span style="color: #F8F8F2; background-color: #272822;">time_stop</span> = time.time()
+
+    <span style="color: #F92672;">return</span> time_stop - time_start
+</pre>
+</div>
+
+</section>
+<section id="slide-orgheadline6">
+<h3 id="orgheadline6"><span class="section-number-3">3.4</span> Parse output parameters</h3>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_parse_output</span>(<span style="color: #F92672;">self</span>):
+    <span style="color: #E6DB74;">"""Parse the output given by the code</span>
+<span style="color: #E6DB74;">    """</span>
+
+    <span style="color: #75715E;"># Retrieve output (see also coupling_tools.get_value)</span>
+    <span style="color: #F8F8F2; background-color: #272822;">xmldoc</span> = minidom.parse(<span style="color: #E6DB74;">'outputs.xml'</span>)
+    <span style="color: #F8F8F2; background-color: #272822;">itemlist</span> = xmldoc.getElementsByTagName(<span style="color: #E6DB74;">'outputs'</span>)
+    <span style="color: #F8F8F2; background-color: #272822;">Y</span> = <span style="color: #F92672;">float</span>(itemlist[<span style="color: #F8F8F2; background-color: #272822;">0</span>].attributes[<span style="color: #E6DB74;">'Y1'</span>].value)
+
+    <span style="color: #F92672;">return</span> [Y]
+</pre>
+</div>
+
+</section>
 </section>
 <section>
-<section id="slide-orgheadline4">
-<h2 id="orgheadline4"><span class="section-number-2">4</span> Creating a CLI for your wrapper</h2>
+<section id="slide-orgheadline8">
+<h2 id="orgheadline8"><span class="section-number-2">4</span> Managing backups of input/output data</h2>
+<p>
+<a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html">otwrapy.dump<sub>array</sub></a> and  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html">otwrapy.load<sub>array</sub></a>
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">dump_array</span>(array, filename, <span style="color: #F8F8F2; background-color: #272822;">compress</span>=<span style="color: #F92672;">False</span>):
+    <span style="color: #E6DB74;">"""Dump an array to a (possibly compressed) file</span>
+<span style="color: #E6DB74;">    """</span>
+    <span style="color: #F92672;">if</span> compress <span style="color: #F92672;">or</span> (filename.split(<span style="color: #E6DB74;">'.'</span>)[-<span style="color: #F8F8F2; background-color: #272822;">1</span>] == <span style="color: #E6DB74;">'pklz'</span>):
+        <span style="color: #F92672;">with</span> gzip.open(filename, <span style="color: #E6DB74;">'wb'</span>) <span style="color: #F92672;">as</span> fh:
+            pickle.dump(array, fh, <span style="color: #F8F8F2; background-color: #272822;">protocol</span>=<span style="color: #F8F8F2; background-color: #272822;">2</span>)
+    <span style="color: #F92672;">else</span>:
+        <span style="color: #F92672;">with</span> <span style="color: #F92672;">open</span>(filename, <span style="color: #E6DB74;">'wb'</span>) <span style="color: #F92672;">as</span> fh:
+            pickle.dump(array, fh, <span style="color: #F8F8F2; background-color: #272822;">protocol</span>=<span style="color: #F8F8F2; background-color: #272822;">2</span>)
+
+<span style="color: #F92672;">def</span> <span style="color: #A6E22E;">load_array</span>(filename, <span style="color: #F8F8F2; background-color: #272822;">compressed</span>=<span style="color: #F92672;">False</span>):
+    <span style="color: #E6DB74;">"""Load a (possibly compressed) pickled array.</span>
+<span style="color: #E6DB74;">    """</span>
+    <span style="color: #F92672;">if</span> compressed <span style="color: #F92672;">or</span> (filename.split(<span style="color: #E6DB74;">'.'</span>)[-<span style="color: #F8F8F2; background-color: #272822;">1</span>] == <span style="color: #E6DB74;">'pklz'</span>):
+        <span style="color: #F92672;">with</span> gzip.open(filename, <span style="color: #E6DB74;">'rb'</span>) <span style="color: #F92672;">as</span> fh:
+            <span style="color: #F92672;">return</span> pickle.load(fh)
+    <span style="color: #F92672;">else</span>:
+        <span style="color: #F92672;">with</span> <span style="color: #F92672;">open</span>(filename, <span style="color: #E6DB74;">'rb'</span>) <span style="color: #F92672;">as</span> fh:
+            <span style="color: #F92672;">return</span> pickle.load(fh)
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline9">
+<h2 id="orgheadline9"><span class="section-number-2">5</span> Catch exceptions when your code fails</h2>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
+        <span style="color: #F92672;">try</span>:
+            <span style="color: #75715E;">#Do stuff</span>
+        <span style="color: #F92672;">except</span> <span style="color: #F92672;">Exception</span>, e:
+            logger.error(e, <span style="color: #F8F8F2; background-color: #272822;">exc_info</span>=<span style="color: #F92672;">True</span>)
+            <span style="color: #F92672;">raise</span> e
+        <span style="color: #F92672;">return</span> Y
+</pre>
+</div>
+
+<p>
+Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Debug.html">otwrapy.Debug()</a>
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
+    <span style="color: #F92672;">@Debug</span>(<span style="color: #E6DB74;">'wrapper.log'</span>)
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
+        <span style="color: #75715E;">#Do stuff</span>
+        <span style="color: #F92672;">return</span> Y
+</pre>
+</div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline10">
+<h2 id="orgheadline10"><span class="section-number-2">6</span> Creating a CLI for your wrapper</h2>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">if</span> <span style="color: #F92672;">__name__</span> == <span style="color: #E6DB74;">'__main__'</span>:
@@ -142,12 +301,57 @@ All of this  might seem complex, but wrappers are repetitive and <a href="http:/
 </pre>
 </div>
 
+<ul>
+<li>You can then execute your code from the command line :</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre  class="src src-bash">python wrapper.py &#8211;X 170 3 0.05
+</pre>
+</div>
 
 </section>
 </section>
 <section>
-<section id="slide-orgheadline5">
-<h2 id="orgheadline5"><span class="section-number-2"></span> Thank you for your attention</h2>
+<section id="slide-orgheadline11">
+<h2 id="orgheadline11"><span class="section-number-2">7</span> Parallelizing the wrapper</h2>
+<p>
+Just let the magic happend with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> !!
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F8F8F2; background-color: #272822;">parallelized_model</span> = Parallelizer(Wrapper(*args, **kwards))
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline12">
+<h2 id="orgheadline12"><span class="section-number-2">8</span> Conclusion</h2>
+<ul>
+<li></li>
+
+<li></li>
+
+<li></li>
+
+<li></li>
+
+<li></li>
+
+<li></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline13">
+<h2 id="orgheadline13"><span class="section-number-2"></span> Thank you for your attention</h2>
 
 <div class="figure">
 <p><a href="http://www.phimeca.com/"><img src="LogoPhiHautBlanc.png" alt="LogoPhiHautBlanc.png" /></a>
