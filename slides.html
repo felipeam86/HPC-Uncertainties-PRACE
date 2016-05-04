@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Creating a distributed python wrapper with otwrapy</title>
+<meta name="author" content="(Felipe Aguirre Martinez)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="./reveal.js/css/reveal.css"/>
+<link rel="stylesheet" href="./reveal.js/css/theme/night.css" id="theme"/>
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = './reveal.js/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide">
+<h1>Creating a distributed python wrapper with otwrapy</h1>
+<h2>Felipe Aguirre Martinez</h2>
+<h2><a href="mailto:aguirre@phimeca.com">aguirre@phimeca.com</a></h2>
+<h2></h2>
+</section>
+<section id="table-of-contents">
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#/slide-orgheadline1">1. Introduction</a></li>
+<li><a href="#/slide-orgheadline2">2. What makes a killer wrapper ?</a></li>
+<li><a href="#/slide-orgheadline3">3. Basic skeleton of a wrapper</a></li>
+<li><a href="#/slide-orgheadline4">4. Creating a CLI for your wrapper</a></li>
+<li><a href="#/slide-orgheadline5">5. Thank you for your attention</a></li>
+</ul>
+</div>
+</div>
+</section>
+
+
+<section>
+<section id="slide-orgheadline1">
+<h2 id="orgheadline1"><span class="section-number-2">1</span> Introduction</h2>
+<ul>
+<li class="fragment appear">What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.</li>
+<li class="fragment appear">A good wrapper can be parallelized</li>
+<li class="fragment appear">Objective of this presentation &#x2013;&gt; Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.</li>
+<li class="fragment appear">It is based on the module <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> available at <a href="https://github.com/felipeam86/otwrapy">GitHub</a></li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline2">
+<h2 id="orgheadline2"><span class="section-number-2">2</span> What makes a killer wrapper ?</h2>
+<ul>
+<li>It catches and logs errors for easy debugging.</li>
+<li>It can either run or simply prepare runs - usefull when running on clusters.</li>
+<li>It is distributed and avoids conflict between runs.</li>
+<li><p>
+You can use it as a script (argsparse module):
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-bash">python wrapper.py &#8211;X 170 3 0.05
+</pre>
+</div></li>
+<li>It is able to run on different environments:
+<ul>
+<li>Workstation</li>
+<li>Office made heterogenous clusters &#x2013;&gt; e.g. IPyparallel or dispy</li>
+<li>HPC through submission scripts &#x2013;&gt; e.g. TGCC or Poincare</li>
+<li>Cloud solutions &#x2013;&gt; e.g. Simulagora or DominoUp</li>
+
+</ul></li>
+
+</ul>
+
+<p>
+All of this  might seem complex, but wrappers are repetitive and <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> is here for you !
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline3">
+<h2 id="orgheadline3"><span class="section-number-2">3</span> Basic skeleton of a wrapper</h2>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
+    <span style="color: #E6DB74;">"""Wrapper of my external code.</span>
+<span style="color: #E6DB74;">    """</span>
+
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__init__</span>(<span style="color: #F92672;">self</span>, n, p):
+        <span style="color: #E6DB74;">"""Initialize the wrapper with n and p the input and output dimension.</span>
+<span style="color: #E6DB74;">        """</span>
+        <span style="color: #F92672;">super</span>(Wrapper, <span style="color: #F92672;">self</span>).__init__(n, p)
+
+        <span style="color: #E6DB74;">"""</span>
+<span style="color: #E6DB74;">        ...</span>
+<span style="color: #E6DB74;">        Do other stuff if necessary</span>
+<span style="color: #E6DB74;">        """</span>
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
+        <span style="color: #E6DB74;">"""Run the model in the shell for the input vector X</span>
+<span style="color: #E6DB74;">        """</span>
+
+        <span style="color: #E6DB74;">"""</span>
+<span style="color: #E6DB74;">        Launch the code and recuperate the output</span>
+<span style="color: #E6DB74;">        """</span>
+
+        <span style="color: #F92672;">return</span> Y
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline4">
+<h2 id="orgheadline4"><span class="section-number-2">4</span> Creating a CLI for your wrapper</h2>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">if</span> <span style="color: #F92672;">__name__</span> == <span style="color: #E6DB74;">'__main__'</span>:
+    <span style="color: #F92672;">import</span> argparse
+    <span style="color: #F8F8F2; background-color: #272822;">parser</span> = argparse.ArgumentParser(<span style="color: #F8F8F2; background-color: #272822;">description</span>=<span style="color: #E6DB74;">"Python wrapper example."</span>)
+    parser.add_argument(<span style="color: #E6DB74;">'-X'</span>, <span style="color: #F8F8F2; background-color: #272822;">nargs</span>=<span style="color: #F8F8F2; background-color: #272822;">3</span>, <span style="color: #F8F8F2; background-color: #272822;">metavar</span>=(<span style="color: #E6DB74;">'X1'</span>, <span style="color: #E6DB74;">'X2'</span>, <span style="color: #E6DB74;">'X3'</span>),
+        <span style="color: #F92672;">help</span>=<span style="color: #E6DB74;">'Vector on which the model will be evaluated'</span>)
+    <span style="color: #F8F8F2; background-color: #272822;">args</span> = parser.parse_args()
+
+    <span style="color: #F8F8F2; background-color: #272822;">model</span> = Wrapper(<span style="color: #F8F8F2; background-color: #272822;">3</span>, <span style="color: #F8F8F2; background-color: #272822;">1</span>)
+    <span style="color: #F8F8F2; background-color: #272822;">X</span> = ot.NumericalPoint([<span style="color: #F92672;">float</span>(x) <span style="color: #F92672;">for</span> x <span style="color: #F92672;">in</span> args.X])
+    <span style="color: #F8F8F2; background-color: #272822;">Y</span> = model(X)
+    dump_array(X, <span style="color: #E6DB74;">'InputSample.pkl'</span>)
+    dump_array(Y, <span style="color: #E6DB74;">'OutputSample.pkl'</span>)
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline5">
+<h2 id="orgheadline5"><span class="section-number-2"></span> Thank you for your attention</h2>
+
+<div class="figure">
+<p><a href="http://www.phimeca.com/"><img src="LogoPlatBlanc.png" alt="LogoPlatBlanc.png" /></a>
+</p>
+</div>
+</section>
+</section>
+</div>
+</div>
+<script src="./reveal.js/lib/js/head.min.js"></script>
+<script src="./reveal.js/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c/t',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+width: 1200,
+height: 800,
+margin: 0.00,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'none', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: './reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: './reveal.js/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: './reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>

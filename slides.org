@@ -1,0 +1,82 @@
+#+Title: Creating a distributed python wrapper with otwrapy
+#+Author: Felipe Aguirre Martinez
+#+Email: aguirre@phimeca.com
+
+#+OPTIONS: toc:nil reveal_mathjax:t reveal_slide_number:c/t reveal_progress:t reveal_history:nil
+#+OPTIONS: reveal_width:1200 reveal_height:800
+#+OPTIONS: toc:1
+#+REVEAL_MARGIN: 0.
+#+REVEAL_THEME: night
+#+REVEAL_TRANS: none
+
+
+* Introduction
+#+ATTR_REVEAL: :frag (appear )
+- What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.
+- A good wrapper can be parallelized
+- Objective of this presentation --> Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.
+- It is based on the module [[http://felipeam86.github.io/otwrapy/][otwrapy]] available at [[https://github.com/felipeam86/otwrapy][GitHub]]
+* What makes a killer wrapper ?
+- It catches and logs errors for easy debugging.
+- It can either run or simply prepare runs - usefull when running on clusters.
+- It is distributed and avoids conflict between runs.
+- You can use it as a script (argsparse module):
+  #+BEGIN_SRC bash
+  python wrapper.py –X 170 3 0.05
+  #+END_SRC
+- It is able to run on different environments:
+  - Workstation
+  - Office made heterogenous clusters --> e.g. IPyparallel or dispy
+  - HPC through submission scripts --> e.g. TGCC or Poincare
+  - Cloud solutions --> e.g. Simulagora or DominoUp
+
+All of this  might seem complex, but wrappers are repetitive and [[http://felipeam86.github.io/otwrapy/][otwrapy]] is here for you !
+
+* Basic skeleton of a wrapper
+
+#+BEGIN_SRC python
+class Wrapper(ot.OpenTURNSPythonFunction):
+    """Wrapper of my external code.
+    """
+
+    def __init__(self, n, p):
+        """Initialize the wrapper with n and p the input and output dimension.
+        """
+        super(Wrapper, self).__init__(n, p)
+
+        """
+        ...
+        Do other stuff if necessary
+        """
+    def _exec(self, X):
+        """Run the model in the shell for the input vector X
+        """
+
+        """
+        Launch the code and recuperate the output
+        """
+
+        return Y
+#+END_SRC
+
+* Creating a CLI for your wrapper
+
+#+BEGIN_SRC python
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="Python wrapper example.")
+    parser.add_argument('-X', nargs=3, metavar=('X1', 'X2', 'X3'),
+        help='Vector on which the model will be evaluated')
+    args = parser.parse_args()
+
+    model = Wrapper(3, 1)
+    X = ot.NumericalPoint([float(x) for x in args.X])
+    Y = model(X)
+    dump_array(X, 'InputSample.pkl')
+    dump_array(Y, 'OutputSample.pkl')
+#+END_SRC
+
+
+* Thank you for your attention
+
+[[http://www.phimeca.com][file:LogoPlatBlanc.png]]
