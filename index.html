@@ -42,6 +42,7 @@
 <li><a href="#/slide-orgheadline10">5. Catch exceptions when your code fails</a></li>
 <li><a href="#/slide-orgheadline11">6. Creating a CLI for your wrapper</a></li>
 <li><a href="#/slide-orgheadline12">7. Parallelizing the wrapper</a></li>
+<li><a href="#/slide-orgheadline13">8. Distributing calls on clusters or the cloud</a></li>
 </ul>
 </div>
 </div>
@@ -234,7 +235,7 @@ the expected parameters should be.</li>
 <ul>
 <li>Most of the time this is a fairly straightforward call to an
 executable with an input file.</li>
-<li>Sometimes, it is usefull to time your runtime.</li>
+<li>Sometimes, it is useful to time your runtime.</li>
 
 </ul>
 
@@ -267,7 +268,7 @@ issue, try <a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual
 <li>If by any chance the external code returns the output parameters of
 interest to STDOUT, set <code>get_stdout=True</code> when calling
 <code>ot.coupling_tools.execute(...)</code>.  (or use use <a href="https://docs.python.org/2/library/subprocess.html#subprocess.check_output"><code>subprocess.check_output</code></a>)</li>
-<li>For standard binary formats, there are python intercafes to <a href="https://github.com/Unidata/netcdf4-python">netcdf</a>
+<li>For standard binary formats, there are python interfaces to <a href="https://github.com/Unidata/netcdf4-python">netcdf</a>
   and <a href="http://www.h5py.org/">HDF5</a>.</li>
 <li>Otherwise, be creative and pythonic !</li>
 
@@ -291,10 +292,10 @@ interest to STDOUT, set <code>get_stdout=True</code> when calling
 <h2 id="orgheadline9"><span class="section-number-2">4</span> Managing data backups</h2>
 <ul>
 <li>Uncertainty studies tend to be expensive in computational time, it is then in your best interest to backup your simulation results !</li>
-<li><code>otwrapy</code> has two usefull functions to do so:  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html"><code>otwrapy.dump_array</code></a> and  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html"><code>otwrapy.load_array</code></a></li>
+<li><code>otwrapy</code> has two useful functions to do so:  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html"><code>otwrapy.dump_array</code></a> and  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html"><code>otwrapy.load_array</code></a></li>
 <li>They are faster than a simple pickle.dump and pickle.load (because they use <code>protocol=2</code>)</li>
 <li>They offer the possibility to compress data with the <code>gzip</code> library. If the extension is <code>`pklz`</code>, it compresses by default.</li>
-<li>Advice: Convert your <code>ot.NumericalSample</code> to a <code>np.array</code> before dumping. <code>np.array</code> are lighter !</li>
+<li>Advice: Convert your <code>ot.NumericalSample</code> to a <code>np.array</code> before dumping. An <code>np.array</code> is lighter !</li>
 <li>Example: dump and compress</li>
 
 </ul>
@@ -319,33 +320,25 @@ otw.dump_array(np.array(X), <span style="color: #E6DB74;">'InputSample.pklz'</sp
 </pre>
 </div>
 
-
 </section>
 </section>
 <section>
 <section id="slide-orgheadline10">
 <h2 id="orgheadline10"><span class="section-number-2">5</span> Catch exceptions when your code fails</h2>
-<div class="org-src-container">
+<ul>
+<li>In order to catch exceptions use the decorator <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Debug.html">otwrapy.Debug()</a> !</li>
+<li>It encloses what happens inside a function into a try/catch
+structure and logs Exceptions when they are raised.</li>
+<li>Usefull when your wrapper is not used on an interactive
+environment like IPython or a Jupyter notebook.</li>
 
-<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
-    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
-        <span style="color: #F92672;">try</span>:
-            <span style="color: #75715E;">#Do stuff</span>
-        <span style="color: #F92672;">except</span> <span style="color: #F92672;">Exception</span>, e:
-            logger.error(e, <span style="color: #F8F8F2; background-color: #272822;">exc_info</span>=<span style="color: #F92672;">True</span>)
-            <span style="color: #F92672;">raise</span> e
-        <span style="color: #F92672;">return</span> Y
-</pre>
-</div>
-
-<p>
-Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Debug.html">otwrapy.Debug()</a>
-</p>
+</ul>
 
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
-    <span style="color: #F92672;">@Debug</span>(<span style="color: #E6DB74;">'wrapper.log'</span>)
+<pre  class="src src-python"><span style="color: #F92672;">import</span> otwrapy <span style="color: #F92672;">as</span> otw
+<span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
+    <span style="color: #F92672;">@otw.Debug</span>(<span style="color: #E6DB74;">'wrapper.log'</span>)
     <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
         <span style="color: #75715E;">#Do stuff</span>
         <span style="color: #F92672;">return</span> Y
@@ -356,6 +349,16 @@ Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy
 <section>
 <section id="slide-orgheadline11">
 <h2 id="orgheadline11"><span class="section-number-2">6</span> Creating a CLI for your wrapper</h2>
+<ul>
+<li>A command line interface allows you to run your wrapper in detached
+mode, e.g., through submission scripts on HPC clusters.</li>
+<li>The <a href="https://docs.python.org/3/library/argparse.html"><code>argparse</code></a> library might seem complicated, but they have a great
+cookbook and there are good chances that a simple copy/paste will be
+enough.</li>
+<li>Take a look at the <a href="https://github.com/felipeam86/otwrapy/tree/master/otwrapy/examples/beam">beam wrapper</a>  for an exmple of a CLI interface</li>
+
+</ul>
+
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">if</span> <span style="color: #F92672;">__name__</span> == <span style="color: #E6DB74;">'__main__'</span>:
@@ -389,13 +392,19 @@ Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy
 <section>
 <section id="slide-orgheadline12">
 <h2 id="orgheadline12"><span class="section-number-2">7</span> Parallelizing the wrapper</h2>
-<p>
-Just let the magic happen with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> !!
-</p>
+<ul>
+<li>Uncertainty studies fall into what we call embarrassingly parallel
+patterns &#x2013;&gt; Repeat similar non communicating tasks over and over.</li>
+<li>Good news, this means that they are very simple to parallelize.</li>
+<li>But don't bother&#x2026; just let the magic happen with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> !!</li>
+
+</ul>
 
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F8F8F2; background-color: #272822;">parallelized_model</span> = Parallelizer(Wrapper(*args, **kwards))
+<pre  class="src src-python"><span style="color: #F92672;">import</span> otwrapy <span style="color: #F92672;">as</span> otw
+<span style="color: #F92672;">from</span> otwrapy.examples.beam <span style="color: #F92672;">import</span> Wrapper
+<span style="color: #F8F8F2; background-color: #272822;">parallelized_beam_wrapper</span> = otw.Parallelizer(Wrapper())
 </pre>
 </div>
 
@@ -403,17 +412,15 @@ Just let the magic happen with <a href="http://felipeam86.github.io/otwrapy/_gen
 </section>
 <section>
 <section id="slide-orgheadline13">
-<h2 id="orgheadline13"><span class="section-number-2"></span> Conclusion</h2>
+<h2 id="orgheadline13"><span class="section-number-2">8</span> Distributing calls on clusters or the cloud</h2>
 <ul>
-<li><a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.PythonFunction.html#openturns.PythonFunction">ot.PythonFunction()</a> is a simpler alternative to
-<a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.OpenTURNSPythonFunction.html#openturns.OpenTURNSPythonFunction">ot.OpenTURNSPythonFunction()</a>, but you loose the ability to
-parameterize your wrapper when instantiating it.</li>
-
-<li></li>
-
-<li></li>
-
-<li></li>
+<li>But what if you want to distribute you wrapper calls on the cloud or
+on a cluster ?</li>
+<li>otw.Parallelizer is no longer the way to go, for the moment&#x2026;</li>
+<li>You can manage to make an heterogenous office cluster with <a href="http://ipyparallel.readthedocs.io/en/latest/">IPyparallel</a> or <a href="http://dispy.sourceforge.net/">dispy</a></li>
+<li>For clusters and the cloud, rely on a good CLI interface of your
+wrapper and distribute your calls through submission scripts or
+cloud APIs (e.g., <a href="https://www.simulagora.com/">Simulagora</a> or <a href="https://www.dominodatalab.com/">Domino</a>)</li>
 
 </ul>
 
@@ -421,7 +428,29 @@ parameterize your wrapper when instantiating it.</li>
 </section>
 <section>
 <section id="slide-orgheadline14">
-<h2 id="orgheadline14"><span class="section-number-2"></span> Thank you for your attention</h2>
+<h2 id="orgheadline14"><span class="section-number-2"></span> Conclusion</h2>
+<ul>
+<li>Take away message : Making a wrapper is all about preparing the
+input, executing the code and parsing the output on isolated working
+directories. Don't forget, in a multi-core era you don't have a
+choice, make your wrapper distributed !</li>
+<li>By creating a CLI of your wrapper, you can easily distribute your
+calls on a cluster or on cloud platforms.</li>
+<li>It is important to protect your wrapper with otw.Degbug() so that
+you can have a traceback of raised Exceptions.</li>
+<li><a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.PythonFunction.html#openturns.PythonFunction">ot.PythonFunction()</a> is a simpler alternative to
+<a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.OpenTURNSPythonFunction.html#openturns.OpenTURNSPythonFunction">ot.OpenTURNSPythonFunction()</a>, but you loose the ability to
+parameterize your wrapper when instantiating it.</li>
+<li><a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> is here for you ! Use it to avoid code boilerplate or as a
+simple cookbook.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline15">
+<h2 id="orgheadline15"><span class="section-number-2"></span> Thank you for your attention</h2>
 
 <div class="figure">
 <p><a href="http://www.phimeca.com/"><img src="LogoPhiHaut-white.png" alt="LogoPhiHaut-white.png" /></a>

@@ -138,7 +138,7 @@ def _prepare_input(self, X):
 ** Run the external code
 - Most of the time this is a fairly straightforward call to an
   executable with an input file.
-- Sometimes, it is usefull to time your runtime.
+- Sometimes, it is useful to time your runtime.
 
 #+BEGIN_SRC python
     def _run_code(self):
@@ -160,7 +160,7 @@ def _prepare_input(self, X):
 - If by any chance the external code returns the output parameters of
   interest to STDOUT, set =get_stdout=True= when calling
   =ot.coupling_tools.execute(...)=.  (or use use [[https://docs.python.org/2/library/subprocess.html#subprocess.check_output][=subprocess.check_output=]])
-- For standard binary formats, there are python intercafes to [[https://github.com/Unidata/netcdf4-python][netcdf]]
+- For standard binary formats, there are python interfaces to [[https://github.com/Unidata/netcdf4-python][netcdf]]
   and [[http://www.h5py.org/][HDF5]].
 - Otherwise, be creative and pythonic !
 #+BEGIN_SRC python
@@ -175,7 +175,7 @@ def _prepare_input(self, X):
 
 * Managing data backups
 - Uncertainty studies tend to be expensive in computational time, it is then in your best interest to backup your simulation results !
-- =otwrapy= has two usefull functions to do so:  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html][=otwrapy.dump_array=]] and  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html][=otwrapy.load_array=]]
+- =otwrapy= has two useful functions to do so:  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html][=otwrapy.dump_array=]] and  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html][=otwrapy.load_array=]]
 - They are faster than a simple pickle.dump and pickle.load (because they use =protocol=2=)
 - They offer the possibility to compress data with the =gzip= library. If the extension is =`pklz`=, it compresses by default.
 - Advice: Convert your =ot.NumericalSample= to a =np.array= before dumping. An =np.array= is lighter !
@@ -195,28 +195,27 @@ X = ot.NumericalSample(X)
 #+END_SRC
 
 * Catch exceptions when your code fails
+- In order to catch exceptions use the decorator [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Debug.html][otwrapy.Debug()]] !
+- It encloses what happens inside a function into a try/catch
+  structure and logs Exceptions when they are raised.
+- Usefull when your wrapper is not used on an interactive
+  environment like IPython or a Jupyter notebook.
 
 #+BEGIN_SRC python
+import otwrapy as otw
 class Wrapper(ot.OpenTURNSPythonFunction):
-    def _exec(self, X):
-        try:
-            #Do stuff
-        except Exception, e:
-            logger.error(e, exc_info=True)
-            raise e
-        return Y
-#+END_SRC
-
-Even better, use [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Debug.html][otwrapy.Debug()]]
-
-#+BEGIN_SRC python
-class Wrapper(ot.OpenTURNSPythonFunction):
-    @Debug('wrapper.log')
+    @otw.Debug('wrapper.log')
     def _exec(self, X):
         #Do stuff
         return Y
 #+END_SRC
 * Creating a CLI for your wrapper
+- A command line interface allows you to run your wrapper in detached
+  mode, e.g., through submission scripts on HPC clusters.
+- The [[https://docs.python.org/3/library/argparse.html][=argparse=]] library might seem complicated, but they have a great
+  cookbook and there are good chances that a simple copy/paste will be
+  enough.
+- Take a look at the [[https://github.com/felipeam86/otwrapy/tree/master/otwrapy/examples/beam][beam wrapper]]  for an exmple of a CLI interface
 
 #+BEGIN_SRC python
 if __name__ == '__main__':
@@ -240,20 +239,40 @@ if __name__ == '__main__':
 #+END_SRC
 
 * Parallelizing the wrapper
-Just let the magic happen with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html][otwrapy.Parallelizer()]] !!
+- Uncertainty studies fall into what we call embarrassingly parallel
+  patterns --> Repeat similar non communicating tasks over and over.
+- Good news, this means that they are very simple to parallelize.
+- But don't bother... just let the magic happen with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html][otwrapy.Parallelizer()]] !!
 
 #+BEGIN_SRC python
-parallelized_model = Parallelizer(Wrapper(*args, **kwards))
+import otwrapy as otw
+from otwrapy.examples.beam import Wrapper
+parallelized_beam_wrapper = otw.Parallelizer(Wrapper())
 #+END_SRC
 
+* Distributing calls on clusters or the cloud
+- But what if you want to distribute you wrapper calls on the cloud or
+  on a cluster ?
+- otw.Parallelizer is no longer the way to go, for the moment...
+- You can manage to make an heterogenous office cluster with [[http://ipyparallel.readthedocs.io/en/latest/][IPyparallel]] or [[http://dispy.sourceforge.net/][dispy]]
+- For clusters and the cloud, rely on a good CLI interface of your
+  wrapper and distribute your calls through submission scripts or
+  cloud APIs (e.g., [[https://www.simulagora.com/][Simulagora]] or [[https://www.dominodatalab.com/][Domino]])
+
 * Conclusion
+- Take away message : Making a wrapper is all about preparing the
+  input, executing the code and parsing the output on isolated working
+  directories. Don't forget, in a multi-core era you don't have a
+  choice, make your wrapper distributed !
+- By creating a CLI of your wrapper, you can easily distribute your
+  calls on a cluster or on cloud platforms.
+- It is important to protect your wrapper with otw.Degbug() so that
+  you can have a traceback of raised Exceptions.
 - [[http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.PythonFunction.html#openturns.PythonFunction][ot.PythonFunction()]] is a simpler alternative to
   [[http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.OpenTURNSPythonFunction.html#openturns.OpenTURNSPythonFunction][ot.OpenTURNSPythonFunction()]], but you loose the ability to
   parameterize your wrapper when instantiating it.
-
--
--
--
+- [[http://felipeam86.github.io/otwrapy/][otwrapy]] is here for you ! Use it to avoid code boilerplate or as a
+  simple cookbook.
 
 * Thank you for your attention
 
