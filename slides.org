@@ -11,122 +11,161 @@
 
 
 * Introduction
-- What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.
-- A good wrapper can be parallelized
-- Objective of this presentation --> Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.
-- It is based on the module [[http://felipeam86.github.io/otwrapy/][otwrapy]] available at [[https://github.com/felipeam86/otwrapy][GitHub]]. Proudly develloped at [[http://www.phimeca.com][Phimeca engineering]].
+- A wrapper is a piece of code that creates a python interface that
+  communicates with your code.
+- A good wrapper should be able to take advantage of multi core
+  computers and HPC clusters in order to distribute multiple
+  evaluations of your code.
+- Objective of this presentation --> Show you how to create the killer
+  distributed wrapper to efficiently carry on uncertainty studies.
+- It is based on the module [[http://felipeam86.github.io/otwrapy/][otwrapy]] available at [[https://github.com/felipeam86/otwrapy][GitHub]]. Proudly
+  developed at [[http://www.phimeca.com][Phimeca engineering]].
 - A good working example can be found on the  [[https://github.com/felipeam86/otwrapy/tree/master/otwrapy/examples/beam][otwrapy repository]].
 
 * What makes a good wrapper ?
-- It catches and logs errors for easy debugging.
-- It can either run or simply prepare runs --> usefull when running on clusters.
 - It is distributed and avoids conflict between runs.
 - You can use it as a script (argsparse module):
   #+BEGIN_SRC bash
-  python wrapper.py –X 170 3 0.05
+  $ python wrapper.py –X 170 3 0.05
   #+END_SRC
 - It is able to run on different environments:
   - Workstation
-  - Office made heterogenous clusters --> e.g. IPyparallel or dispy
+  - Office made heterogeneous clusters --> e.g. IPyparallel or dispy
   - HPC through submission scripts --> e.g. TGCC or Poincare
   - Cloud solutions --> e.g. Simulagora or DominoUp
+- It catches and logs errors for easy debugging.
+- It can either run or simply prepare runs --> useful when running on
+  clusters.
 
-All of this  might seem complex, but wrappers are repetitive and [[http://felipeam86.github.io/otwrapy/][otwrapy]] is here for you !
+All of this  might seem complex, but wrappers are repetitive and
+[[http://felipeam86.github.io/otwrapy/][otwrapy]] is here for you !
 
 * Basic skeleton of a wrapper
+- What follows assumes that you want to wrap an external code not
+  written in Python.
+- An OpenTURNS wrapper is a subclass of =ot.OpenTURNSPythonFunction=
+  for which at least the method =_exec(X)= should be
+  overloaded. Additionally, you can overload =_exec_sample(X)=, but
+  with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html][otwrapy.Parallelizer()]] there is no need to.
+- If your code handles the gradient and the hessian, you can
+  respectively overload =_gradient(X)= and =_hessian(X)=.
 
 #+BEGIN_SRC python
 class Wrapper(ot.OpenTURNSPythonFunction):
     """Wrapper of my external code.
     """
-
-    def __init__(self, n, p):
-        """Initialize the wrapper with n and p the input and output dimension.
+    def __init__(self):
+        """Initialize the wrapper with 4 and 1 as input and output dimension.
         """
-        super(Wrapper, self).__init__(n, p)
-
-        """
-        ...
-        Do other stuff if necessary
-        """
+        super(Wrapper, self).__init__(4, 1)
+        # Do other stuff if necessary
     def _exec(self, X):
         """Run the model in the shell for the input vector X
         """
+        pass
+#+END_SRC
 
-        # Move to temp work dir. Cleanup at the end
-        with otw.TempWorkDir(cleanup=True):
-            # Create input file
-            self._create_input_file(X)
-            # Execute code
-            runtime = self._call(X)
-            # Retrieve output (see also ot.coupling_tools.get_value)
-            Y = self._parse_output()
+** Overloading the _exec function
 
-        return Y
+- =_exec= is the default OpenTURNS method that executes the function
+  on a given point. Semantically speaking, the function is divided on
+  three parts :
+  - Prepare the input parameters, e.g., create an input file.
+  - Run the external code, e.g., on the shell.
+  - Get the output parameters by parsing the output given by the code.
+- The three steps are executed on a temporary working directory using  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir][otwrapy.TempWorkDir]]
+#+BEGIN_SRC python
+def _exec(self, X):
+    """Run the model in the shell for the input vector X
+    """
+
+    # Move to temp work dir. Cleanup at the end
+    with otw.TempWorkDir(cleanup=True):
+        # Prepare the input
+        self._prepare_input(X)
+        # Run the external code
+        runtime = self._run_code(X)
+        # Parse the output parameters
+        Y = self._parse_output()
+
+    return Y
 #+END_SRC
 
 ** Temporary working directory
 
-Efficiently and safely manage working on temporary directories with a context manager --> [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir][otwrapy.TempWorkDir]]
+- Efficiently and safely work on temporary directories with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir][otwrapy.TempWorkDir]]
+  - Avoid conflict between simulations running in parallel.
+  - If an exception is raised during execution, the Python interpreter
+    should come back to the preceding current directories.
+  - Cleanup the temporary working directories upon exit. Or don't if
+    you want a full backup of the simulations.
+- Example:
 
 #+BEGIN_SRC python
-class TempWorkDir(object):
-    """Implement a context manager that creates a temporary working directory.
-    """
-    def __init__(self, cleanup=False):
-        self.dirname = mkdtemp(dir='/tmp')
-        self.cleanup = cleanup
-    def __enter__(self):
-        self.curdir = os.getcwd()
-        os.chdir(self.dirname)
-    def __exit__(self, type, value, traceback):
-        os.chdir(self.curdir)
-        if self.cleanup:
-            shutil.rmtree(self.dirname)
-
-
-with TempWorkDir(cleanup=True):
+import otwrapy as otw
+# I'm on a given dir, e.g. ~/beam-wrapper
+with otw.TempWorkDir(cleanup=True):
     """
     ...
-    Do stuff
+    Do stuff safely on an exclusive temporary directory and erase it afterwards
     ...
     """
+    # The current working directory is something like /tmp/pZYpzQ
+
+# Back on ~/beam-wrapper and /tmp/pZYpzQ does not exist anymore
 #+END_SRC
 
-** Create input file
+** Prepare the input parameters
+- For each simulation, your wrapper must communicate the input
+  parameters to the external code.
+- Most scientific codes use input files that describe, among other
+  thing, the parameters of your model/simulation.
+- Using OpenTURNS coupling tools, the values of the vector X are
+  placed on an input template file that have tokens/placeholders for where
+  the expected parameters should be.
+
 #+BEGIN_SRC python
-    def _create_input_file(self, X):
-        """Create the input file required by the code.
-        """
-        ot.coupling_tools.replace(
-            'input_templatefile.xml',
-            'input.xml',
-            ['@X1','X2','@X3','@X4'],
-            X)
+def _prepare_input(self, X):
+    """Create the input file required by the code.
+    """
+    ot.coupling_tools.replace(
+        infile='input_templatefile.xml',
+        outfile='input.xml',
+        tokens=['@X1','@X2','@X3','@X4'],
+        values=X)
 #+END_SRC
 
-** Execute code
+** Run the external code
+- Most of the time this is a fairly straightforward call to an
+  executable with an input file.
+- Sometimes, it is usefull to time your runtime.
 
 #+BEGIN_SRC python
-    def _call(self):
-        """Execute code on the shell
-        """
-
+    def _run_code(self):
         time_start = time.time()
-        ot.coupling_tools.execute('/path/to/executable -x input.xml')
-        time_stop = time.time()
-
-        return time_stop - time_start
+        ot.coupling_tools.execute('/path/to/executable -x input.xml'))
+        return time.time() - time_start
 #+END_SRC
 
+[[http://www.phimeca.com][file:Temps_DOE_Sobol_1000-white.png]]
 ** Parse output parameters
-
+- Common practice among scientific code is to create output files with
+  the results of the simulation.
+- The output should then be parsed in order to get the output
+  parameters of interest.
+- If it is a =.csv= file, [[http://pandas.pydata.org/pandas-docs/stable/generated/pandas.read_csv.html][=pandas.read_csv=]] is the fastest option, but it
+  introduces pandas as a dependency. Otherwise, if speed is not an
+  issue, try [[http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.coupling_tools.get_value.html#openturns.coupling_tools.get_value][=ot.coupling_tools.get_value=]] or [[http://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.loadtxt.html][=numpy.loadttxt=]].
+- For =.xml= files [[https://docs.python.org/2/library/xml.dom.minidom.html][minidom]] package from the python standard library does the trick.
+- If by any chance the external code returns the output parameters of
+  interest to STDOUT, set =get_stdout=True= when calling
+  =ot.coupling_tools.execute(...)=.  (or use use [[https://docs.python.org/2/library/subprocess.html#subprocess.check_output][=subprocess.check_output=]])
+- For standard binary formats, there are python intercafes to [[https://github.com/Unidata/netcdf4-python][netcdf]]
+  and [[http://www.h5py.org/][HDF5]].
+- Otherwise, be creative and pythonic !
 #+BEGIN_SRC python
     def _parse_output(self):
-        """Parse the output given by the code
-        """
-
-        # Retrieve output (see also coupling_tools.get_value)
+        # Retrieve output (see also )
         xmldoc = minidom.parse('outputs.xml')
         itemlist = xmldoc.getElementsByTagName('outputs')
         Y = float(itemlist[0].attributes['Y1'].value)
@@ -134,30 +173,25 @@ with TempWorkDir(cleanup=True):
         return [Y]
 #+END_SRC
 
-* Managing backups of input/output data
+* Managing data backups
+- Uncertainty studies tend to be expensive in computational time, it is then in your best interest to backup your simulation results !
+- =otwrapy= has two usefull functions to do so:  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html][=otwrapy.dump_array=]] and  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html][=otwrapy.load_array=]]
+- They are faster than a simple pickle.dump and pickle.load (because they use =protocol=2=)
+- They offer the possibility to compress data with the =gzip= library. If the extension is =`pklz`=, it compresses by default.
+- Advice: Convert your =ot.NumericalSample= to a =np.array= before dumping. An =np.array= is lighter !
+- Example: dump and compress 
+#+BEGIN_SRC python
+import otwrapy as otw
+otw.dump_array(np.array(X), 'InputSample.pklz', compress=True)
+#+END_SRC
 
- [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html][otwrapy.dump_array]] and  [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html][otwrapy.load_array]]
+-
 
 #+BEGIN_SRC python
-def dump_array(array, filename, compress=False):
-    """Dump an array to a (possibly compressed) file
-    """
-    if compress or (filename.split('.')[-1] == 'pklz'):
-        with gzip.open(filename, 'wb') as fh:
-            pickle.dump(array, fh, protocol=2)
-    else:
-        with open(filename, 'wb') as fh:
-            pickle.dump(array, fh, protocol=2)
-
-def load_array(filename, compressed=False):
-    """Load a (possibly compressed) pickled array.
-    """
-    if compressed or (filename.split('.')[-1] == 'pklz'):
-        with gzip.open(filename, 'rb') as fh:
-            return pickle.load(fh)
-    else:
-        with open(filename, 'rb') as fh:
-            return pickle.load(fh)
+import otwrapy as otw
+import openturns as ot
+X = otw.load_array('InputSample.pklz')
+X = ot.NumericalSample(X)
 #+END_SRC
 
 * Catch exceptions when your code fails
@@ -206,22 +240,27 @@ if __name__ == '__main__':
 #+END_SRC
 
 * Parallelizing the wrapper
-Just let the magic happend with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html][otwrapy.Parallelizer()]] !!
+Just let the magic happen with [[http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html][otwrapy.Parallelizer()]] !!
 
 #+BEGIN_SRC python
 parallelized_model = Parallelizer(Wrapper(*args, **kwards))
 #+END_SRC
 
 * Conclusion
--
--
--
+- [[http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.PythonFunction.html#openturns.PythonFunction][ot.PythonFunction()]] is a simpler alternative to
+  [[http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.OpenTURNSPythonFunction.html#openturns.OpenTURNSPythonFunction][ot.OpenTURNSPythonFunction()]], but you loose the ability to
+  parameterize your wrapper when instantiating it.
+
 -
 -
 -
 
 * Thank you for your attention
 
-[[http://www.phimeca.com][file:LogoPhiHautBlanc.png]]
+[[http://www.phimeca.com][file:LogoPhiHaut-white.png]]
 
-Felipe Aguirre Martinez - aguirre@phimeca.com
+Felipe Aguirre Martinez
+
+[[mailto:aguirre@phimeca.com][aguirre@phimeca.com]]
+
+Github : [[https://github.com/felipeam86/otwrapy][otwrapy]]

@@ -37,13 +37,11 @@
 <ul>
 <li><a href="#/slide-orgheadline1">1. Introduction</a></li>
 <li><a href="#/slide-orgheadline2">2. What makes a good wrapper ?</a></li>
-<li><a href="#/slide-orgheadline7">3. Basic skeleton of a wrapper</a></li>
-<li><a href="#/slide-orgheadline8">4. Managing backups of input/output data</a></li>
-<li><a href="#/slide-orgheadline9">5. Catch exceptions when your code fails</a></li>
-<li><a href="#/slide-orgheadline10">6. Creating a CLI for your wrapper</a></li>
-<li><a href="#/slide-orgheadline11">7. Parallelizing the wrapper</a></li>
-<li><a href="#/slide-orgheadline12">8. Conclusion</a></li>
-<li><a href="#/slide-orgheadline13">9. Thank you for your attention</a></li>
+<li><a href="#/slide-orgheadline8">3. Basic skeleton of a wrapper</a></li>
+<li><a href="#/slide-orgheadline9">4. Managing data backups</a></li>
+<li><a href="#/slide-orgheadline10">5. Catch exceptions when your code fails</a></li>
+<li><a href="#/slide-orgheadline11">6. Creating a CLI for your wrapper</a></li>
+<li><a href="#/slide-orgheadline12">7. Parallelizing the wrapper</a></li>
 </ul>
 </div>
 </div>
@@ -54,10 +52,15 @@
 <section id="slide-orgheadline1">
 <h2 id="orgheadline1"><span class="section-number-2">1</span> Introduction</h2>
 <ul>
-<li>What is a wrapper ? it is a piece of code that creates a python interface that communicates with your code.</li>
-<li>A good wrapper can be parallelized</li>
-<li>Objective of this presentation &#x2013;&gt; Show you how to create the killer distributed wrapper to efficiently carry on uncertainty studies.</li>
-<li>It is based on the module <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> available at <a href="https://github.com/felipeam86/otwrapy">GitHub</a>. Proudly develloped at <a href="http://www.phimeca.com/">Phimeca engineering</a>.</li>
+<li>A wrapper is a piece of code that creates a python interface that
+communicates with your code.</li>
+<li>A good wrapper should be able to take advantage of multi core
+computers and HPC clusters in order to distribute multiple
+evaluations of your code.</li>
+<li>Objective of this presentation &#x2013;&gt; Show you how to create the killer
+distributed wrapper to efficiently carry on uncertainty studies.</li>
+<li>It is based on the module <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> available at <a href="https://github.com/felipeam86/otwrapy">GitHub</a>. Proudly
+developed at <a href="http://www.phimeca.com/">Phimeca engineering</a>.</li>
 <li>A good working example can be found on the  <a href="https://github.com/felipeam86/otwrapy/tree/master/otwrapy/examples/beam">otwrapy repository</a>.</li>
 
 </ul>
@@ -68,145 +71,211 @@
 <section id="slide-orgheadline2">
 <h2 id="orgheadline2"><span class="section-number-2">2</span> What makes a good wrapper ?</h2>
 <ul>
-<li>It catches and logs errors for easy debugging.</li>
-<li>It can either run or simply prepare runs &#x2013;&gt; usefull when running on clusters.</li>
 <li>It is distributed and avoids conflict between runs.</li>
 <li><p>
 You can use it as a script (argsparse module):
 </p>
 <div class="org-src-container">
 
-<pre  class="src src-bash">python wrapper.py &#8211;X 170 3 0.05
+<pre  class="src src-bash">$ python wrapper.py &#8211;X 170 3 0.05
 </pre>
 </div></li>
 <li>It is able to run on different environments:
 <ul>
 <li>Workstation</li>
-<li>Office made heterogenous clusters &#x2013;&gt; e.g. IPyparallel or dispy</li>
+<li>Office made heterogeneous clusters &#x2013;&gt; e.g. IPyparallel or dispy</li>
 <li>HPC through submission scripts &#x2013;&gt; e.g. TGCC or Poincare</li>
 <li>Cloud solutions &#x2013;&gt; e.g. Simulagora or DominoUp</li>
 
 </ul></li>
+<li>It catches and logs errors for easy debugging.</li>
+<li>It can either run or simply prepare runs &#x2013;&gt; useful when running on
+clusters.</li>
 
 </ul>
 
 <p>
-All of this  might seem complex, but wrappers are repetitive and <a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> is here for you !
+All of this  might seem complex, but wrappers are repetitive and
+<a href="http://felipeam86.github.io/otwrapy/">otwrapy</a> is here for you !
 </p>
 
 </section>
 </section>
 <section>
-<section id="slide-orgheadline7">
-<h2 id="orgheadline7"><span class="section-number-2">3</span> Basic skeleton of a wrapper</h2>
+<section id="slide-orgheadline8">
+<h2 id="orgheadline8"><span class="section-number-2">3</span> Basic skeleton of a wrapper</h2>
+<ul>
+<li>What follows assumes that you want to wrap an external code not
+written in Python.</li>
+<li>An OpenTURNS wrapper is a subclass of <code>ot.OpenTURNSPythonFunction</code>
+for which at least the method <code>_exec(X)</code> should be
+overloaded. Additionally, you can overload <code>_exec_sample(X)</code>, but
+with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> there is no need to.</li>
+<li>If your code handles the gradient and the hessian, you can
+respectively overload <code>_gradient(X)</code> and <code>_hessian(X)</code>.</li>
+
+</ul>
+
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
     <span style="color: #E6DB74;">"""Wrapper of my external code.</span>
 <span style="color: #E6DB74;">    """</span>
-
-    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__init__</span>(<span style="color: #F92672;">self</span>, n, p):
-        <span style="color: #E6DB74;">"""Initialize the wrapper with n and p the input and output dimension.</span>
+    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__init__</span>(<span style="color: #F92672;">self</span>):
+        <span style="color: #E6DB74;">"""Initialize the wrapper with 4 and 1 as input and output dimension.</span>
 <span style="color: #E6DB74;">        """</span>
-        <span style="color: #F92672;">super</span>(Wrapper, <span style="color: #F92672;">self</span>).__init__(n, p)
-
-        <span style="color: #E6DB74;">"""</span>
-<span style="color: #E6DB74;">        ...</span>
-<span style="color: #E6DB74;">        Do other stuff if necessary</span>
-<span style="color: #E6DB74;">        """</span>
+        <span style="color: #F92672;">super</span>(Wrapper, <span style="color: #F92672;">self</span>).__init__(<span style="color: #F8F8F2; background-color: #272822;">4</span>, <span style="color: #F8F8F2; background-color: #272822;">1</span>)
+        <span style="color: #75715E;"># Do other stuff if necessary</span>
     <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
         <span style="color: #E6DB74;">"""Run the model in the shell for the input vector X</span>
 <span style="color: #E6DB74;">        """</span>
-
-        <span style="color: #75715E;"># Move to temp work dir. Cleanup at the end</span>
-        <span style="color: #F92672;">with</span> otw.TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
-            <span style="color: #75715E;"># Create input file</span>
-            <span style="color: #F92672;">self</span>._create_input_file(X)
-            <span style="color: #75715E;"># Execute code</span>
-            <span style="color: #F8F8F2; background-color: #272822;">runtime</span> = <span style="color: #F92672;">self</span>._call(X)
-            <span style="color: #75715E;"># Retrieve output (see also ot.coupling_tools.get_value)</span>
-            <span style="color: #F8F8F2; background-color: #272822;">Y</span> = <span style="color: #F92672;">self</span>._parse_output()
-
-        <span style="color: #F92672;">return</span> Y
+        <span style="color: #F92672;">pass</span>
 </pre>
 </div>
 
 </section>
 <section id="slide-orgheadline3">
-<h3 id="orgheadline3"><span class="section-number-3">3.1</span> Temporary working directory</h3>
-<p>
-Efficiently and safely manage working on temporary directories with a context manager &#x2013;&gt; <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir">otwrapy.TempWorkDir</a>
-</p>
+<h3 id="orgheadline3"><span class="section-number-3">3.1</span> Overloading the _exec function</h3>
+<ul>
+<li><code>_exec</code> is the default OpenTURNS method that executes the function
+on a given point. Semantically speaking, the function is divided on
+three parts :
+<ul>
+<li>Prepare the input parameters, e.g., create an input file.</li>
+<li>Run the external code, e.g., on the shell.</li>
+<li>Get the output parameters by parsing the output given by the code.</li>
 
+</ul></li>
+<li>The three steps are executed on a temporary working directory using  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir">otwrapy.TempWorkDir</a></li>
+
+</ul>
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">TempWorkDir</span>(object):
-    <span style="color: #E6DB74;">"""Implement a context manager that creates a temporary working directory.</span>
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_exec</span>(<span style="color: #F92672;">self</span>, X):
+    <span style="color: #E6DB74;">"""Run the model in the shell for the input vector X</span>
 <span style="color: #E6DB74;">    """</span>
-    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__init__</span>(<span style="color: #F92672;">self</span>, <span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">False</span>):
-        <span style="color: #F92672;">self</span>.dirname = mkdtemp(<span style="color: #F8F8F2; background-color: #272822;">dir</span>=<span style="color: #E6DB74;">'/tmp'</span>)
-        <span style="color: #F92672;">self</span>.cleanup = cleanup
-    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__enter__</span>(<span style="color: #F92672;">self</span>):
-        <span style="color: #F92672;">self</span>.curdir = os.getcwd()
-        os.chdir(<span style="color: #F92672;">self</span>.dirname)
-    <span style="color: #F92672;">def</span> <span style="color: #A6E22E;">__exit__</span>(<span style="color: #F92672;">self</span>, <span style="color: #F92672;">type</span>, value, traceback):
-        os.chdir(<span style="color: #F92672;">self</span>.curdir)
-        <span style="color: #F92672;">if</span> <span style="color: #F92672;">self</span>.cleanup:
-            shutil.rmtree(<span style="color: #F92672;">self</span>.dirname)
 
+    <span style="color: #75715E;"># Move to temp work dir. Cleanup at the end</span>
+    <span style="color: #F92672;">with</span> otw.TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
+        <span style="color: #75715E;"># Prepare the input</span>
+        <span style="color: #F92672;">self</span>._prepare_input(X)
+        <span style="color: #75715E;"># Run the external code</span>
+        <span style="color: #F8F8F2; background-color: #272822;">runtime</span> = <span style="color: #F92672;">self</span>._run_code(X)
+        <span style="color: #75715E;"># Parse the output parameters</span>
+        <span style="color: #F8F8F2; background-color: #272822;">Y</span> = <span style="color: #F92672;">self</span>._parse_output()
 
-<span style="color: #F92672;">with</span> TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
-    <span style="color: #E6DB74;">"""</span>
-<span style="color: #E6DB74;">    ...</span>
-<span style="color: #E6DB74;">    Do stuff</span>
-<span style="color: #E6DB74;">    ...</span>
-<span style="color: #E6DB74;">    """</span>
+    <span style="color: #F92672;">return</span> Y
 </pre>
 </div>
 
 </section>
 <section id="slide-orgheadline4">
-<h3 id="orgheadline4"><span class="section-number-3">3.2</span> Create input file</h3>
+<h3 id="orgheadline4"><span class="section-number-3">3.2</span> Temporary working directory</h3>
+<ul>
+<li>Efficiently and safely work on temporary directories with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.TempWorkDir.html#otwrapy-tempworkdir">otwrapy.TempWorkDir</a>
+<ul>
+<li>Avoid conflict between simulations running in parallel.</li>
+<li>If an exception is raised during execution, the Python interpreter
+should come back to the preceding current directories.</li>
+<li>Cleanup the temporary working directories upon exit. Or don't if
+you want a full backup of the simulations.</li>
+
+</ul></li>
+<li>Example:</li>
+
+</ul>
+
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_create_input_file</span>(<span style="color: #F92672;">self</span>, X):
-    <span style="color: #E6DB74;">"""Create the input file required by the code.</span>
+<pre  class="src src-python"><span style="color: #F92672;">import</span> otwrapy <span style="color: #F92672;">as</span> otw
+<span style="color: #75715E;"># </span><span style="color: #75715E;">I'm on a given dir, e.g. ~/beam-wrapper</span>
+<span style="color: #F92672;">with</span> otw.TempWorkDir(<span style="color: #F8F8F2; background-color: #272822;">cleanup</span>=<span style="color: #F92672;">True</span>):
+    <span style="color: #E6DB74;">"""</span>
+<span style="color: #E6DB74;">    ...</span>
+<span style="color: #E6DB74;">    Do stuff safely on an exclusive temporary directory and erase it afterward</span><span style="color: #000000; background-color: #e0eeee;">s</span>
+<span style="color: #E6DB74;">    ...</span>
 <span style="color: #E6DB74;">    """</span>
-    ot.coupling_tools.replace(
-        <span style="color: #E6DB74;">'input_templatefile.xml'</span>,
-        <span style="color: #E6DB74;">'input.xml'</span>,
-        [<span style="color: #E6DB74;">'@X1'</span>,<span style="color: #E6DB74;">'X2'</span>,<span style="color: #E6DB74;">'@X3'</span>,<span style="color: #E6DB74;">'@X4'</span>],
-        X)
+    <span style="color: #75715E;"># The current working directory is something like /tmp/pZYpzQ</span>
+
+<span style="color: #75715E;"># </span><span style="color: #75715E;">Back on ~/beam-wrapper and /tmp/pZYpzQ does not exist anymore</span>
 </pre>
 </div>
 
 </section>
 <section id="slide-orgheadline5">
-<h3 id="orgheadline5"><span class="section-number-3">3.3</span> Execute code</h3>
+<h3 id="orgheadline5"><span class="section-number-3">3.3</span> Prepare the input parameters</h3>
+<ul>
+<li>For each simulation, your wrapper must communicate the input
+parameters to the external code.</li>
+<li>Most scientific codes use input files that describe, among other
+thing, the parameters of your model/simulation.</li>
+<li>Using OpenTURNS coupling tools, the values of the vector X are
+placed on an input template file that have tokens/placeholders for where
+the expected parameters should be.</li>
+
+</ul>
+
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_call</span>(<span style="color: #F92672;">self</span>):
-    <span style="color: #E6DB74;">"""Execute code on the shell</span>
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_prepare_input</span>(<span style="color: #F92672;">self</span>, X):
+    <span style="color: #E6DB74;">"""Create the input file required by the code.</span>
 <span style="color: #E6DB74;">    """</span>
-
-    <span style="color: #F8F8F2; background-color: #272822;">time_start</span> = time.time()
-    ot.coupling_tools.execute(<span style="color: #E6DB74;">'/path/to/executable -x input.xml'</span>)
-    <span style="color: #F8F8F2; background-color: #272822;">time_stop</span> = time.time()
-
-    <span style="color: #F92672;">return</span> time_stop - time_start
+    ot.coupling_tools.replace(
+        <span style="color: #F8F8F2; background-color: #272822;">infile</span>=<span style="color: #E6DB74;">'input_templatefile.xml'</span>,
+        <span style="color: #F8F8F2; background-color: #272822;">outfile</span>=<span style="color: #E6DB74;">'input.xml'</span>,
+        <span style="color: #F8F8F2; background-color: #272822;">tokens</span>=[<span style="color: #E6DB74;">'@X1'</span>,<span style="color: #E6DB74;">'@X2'</span>,<span style="color: #E6DB74;">'@X3'</span>,<span style="color: #E6DB74;">'@X4'</span>],
+        <span style="color: #F8F8F2; background-color: #272822;">values</span>=X)
 </pre>
 </div>
 
 </section>
 <section id="slide-orgheadline6">
-<h3 id="orgheadline6"><span class="section-number-3">3.4</span> Parse output parameters</h3>
+<h3 id="orgheadline6"><span class="section-number-3">3.4</span> Run the external code</h3>
+<ul>
+<li>Most of the time this is a fairly straightforward call to an
+executable with an input file.</li>
+<li>Sometimes, it is usefull to time your runtime.</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_run_code</span>(<span style="color: #F92672;">self</span>):
+    <span style="color: #F8F8F2; background-color: #272822;">time_start</span> = time.time()
+    ot.coupling_tools.execute(<span style="color: #E6DB74;">'/path/to/executable -x input.xml'</span>))
+    <span style="color: #F92672;">return</span> time.time() - time_start
+</pre>
+</div>
+
+
+<div class="figure">
+<p><a href="http://www.phimeca.com/"><img src="Temps_DOE_Sobol_1000-white.png" alt="Temps_DOE_Sobol_1000-white.png" /></a>
+</p>
+</div>
+</section>
+<section id="slide-orgheadline7">
+<h3 id="orgheadline7"><span class="section-number-3">3.5</span> Parse output parameters</h3>
+<ul>
+<li>Common practice among scientific code is to create output files with
+the results of the simulation.</li>
+<li>The output should then be parsed in order to get the output
+parameters of interest.</li>
+<li>If it is a <code>.csv</code> file, <a href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.read_csv.html"><code>pandas.read_csv</code></a> is the fastest option, but it
+introduces pandas as a dependency. Otherwise, if speed is not an
+issue, try <a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.coupling_tools.get_value.html#openturns.coupling_tools.get_value"><code>ot.coupling_tools.get_value</code></a> or <a href="http://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.loadtxt.html"><code>numpy.loadttxt</code></a>.</li>
+<li>For <code>.xml</code> files <a href="https://docs.python.org/2/library/xml.dom.minidom.html">minidom</a> package from the python standard library does the trick.</li>
+<li>If by any chance the external code returns the output parameters of
+interest to STDOUT, set <code>get_stdout=True</code> when calling
+<code>ot.coupling_tools.execute(...)</code>.  (or use use <a href="https://docs.python.org/2/library/subprocess.html#subprocess.check_output"><code>subprocess.check_output</code></a>)</li>
+<li>For standard binary formats, there are python intercafes to <a href="https://github.com/Unidata/netcdf4-python">netcdf</a>
+  and <a href="http://www.h5py.org/">HDF5</a>.</li>
+<li>Otherwise, be creative and pythonic !</li>
+
+</ul>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">_parse_output</span>(<span style="color: #F92672;">self</span>):
-    <span style="color: #E6DB74;">"""Parse the output given by the code</span>
-<span style="color: #E6DB74;">    """</span>
-
-    <span style="color: #75715E;"># Retrieve output (see also coupling_tools.get_value)</span>
+    <span style="color: #75715E;"># Retrieve output (see also )</span>
     <span style="color: #F8F8F2; background-color: #272822;">xmldoc</span> = minidom.parse(<span style="color: #E6DB74;">'outputs.xml'</span>)
     <span style="color: #F8F8F2; background-color: #272822;">itemlist</span> = xmldoc.getElementsByTagName(<span style="color: #E6DB74;">'outputs'</span>)
     <span style="color: #F8F8F2; background-color: #272822;">Y</span> = <span style="color: #F92672;">float</span>(itemlist[<span style="color: #F8F8F2; background-color: #272822;">0</span>].attributes[<span style="color: #E6DB74;">'Y1'</span>].value)
@@ -218,41 +287,44 @@ Efficiently and safely manage working on temporary directories with a context ma
 </section>
 </section>
 <section>
-<section id="slide-orgheadline8">
-<h2 id="orgheadline8"><span class="section-number-2">4</span> Managing backups of input/output data</h2>
-<p>
-<a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html">otwrapy.dump<sub>array</sub></a> and  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html">otwrapy.load<sub>array</sub></a>
-</p>
+<section id="slide-orgheadline9">
+<h2 id="orgheadline9"><span class="section-number-2">4</span> Managing data backups</h2>
+<ul>
+<li>Uncertainty studies tend to be expensive in computational time, it is then in your best interest to backup your simulation results !</li>
+<li><code>otwrapy</code> has two usefull functions to do so:  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.dump_array.html"><code>otwrapy.dump_array</code></a> and  <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.load_array.html"><code>otwrapy.load_array</code></a></li>
+<li>They are faster than a simple pickle.dump and pickle.load (because they use <code>protocol=2</code>)</li>
+<li>They offer the possibility to compress data with the <code>gzip</code> library. If the extension is <code>`pklz`</code>, it compresses by default.</li>
+<li>Advice: Convert your <code>ot.NumericalSample</code> to a <code>np.array</code> before dumping. <code>np.array</code> are lighter !</li>
+<li>Example: dump and compress</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #F92672;">import</span> otwrapy <span style="color: #F92672;">as</span> otw
+otw.dump_array(np.array(X), <span style="color: #E6DB74;">'InputSample.pklz'</span>, <span style="color: #F8F8F2; background-color: #272822;">compress</span>=<span style="color: #F92672;">True</span>)
+</pre>
+</div>
+
+<ul>
+<li></li>
+
+</ul>
 
 <div class="org-src-container">
 
-<pre  class="src src-python"><span style="color: #F92672;">def</span> <span style="color: #A6E22E;">dump_array</span>(array, filename, <span style="color: #F8F8F2; background-color: #272822;">compress</span>=<span style="color: #F92672;">False</span>):
-    <span style="color: #E6DB74;">"""Dump an array to a (possibly compressed) file</span>
-<span style="color: #E6DB74;">    """</span>
-    <span style="color: #F92672;">if</span> compress <span style="color: #F92672;">or</span> (filename.split(<span style="color: #E6DB74;">'.'</span>)[-<span style="color: #F8F8F2; background-color: #272822;">1</span>] == <span style="color: #E6DB74;">'pklz'</span>):
-        <span style="color: #F92672;">with</span> gzip.open(filename, <span style="color: #E6DB74;">'wb'</span>) <span style="color: #F92672;">as</span> fh:
-            pickle.dump(array, fh, <span style="color: #F8F8F2; background-color: #272822;">protocol</span>=<span style="color: #F8F8F2; background-color: #272822;">2</span>)
-    <span style="color: #F92672;">else</span>:
-        <span style="color: #F92672;">with</span> <span style="color: #F92672;">open</span>(filename, <span style="color: #E6DB74;">'wb'</span>) <span style="color: #F92672;">as</span> fh:
-            pickle.dump(array, fh, <span style="color: #F8F8F2; background-color: #272822;">protocol</span>=<span style="color: #F8F8F2; background-color: #272822;">2</span>)
-
-<span style="color: #F92672;">def</span> <span style="color: #A6E22E;">load_array</span>(filename, <span style="color: #F8F8F2; background-color: #272822;">compressed</span>=<span style="color: #F92672;">False</span>):
-    <span style="color: #E6DB74;">"""Load a (possibly compressed) pickled array.</span>
-<span style="color: #E6DB74;">    """</span>
-    <span style="color: #F92672;">if</span> compressed <span style="color: #F92672;">or</span> (filename.split(<span style="color: #E6DB74;">'.'</span>)[-<span style="color: #F8F8F2; background-color: #272822;">1</span>] == <span style="color: #E6DB74;">'pklz'</span>):
-        <span style="color: #F92672;">with</span> gzip.open(filename, <span style="color: #E6DB74;">'rb'</span>) <span style="color: #F92672;">as</span> fh:
-            <span style="color: #F92672;">return</span> pickle.load(fh)
-    <span style="color: #F92672;">else</span>:
-        <span style="color: #F92672;">with</span> <span style="color: #F92672;">open</span>(filename, <span style="color: #E6DB74;">'rb'</span>) <span style="color: #F92672;">as</span> fh:
-            <span style="color: #F92672;">return</span> pickle.load(fh)
+<pre  class="src src-python"><span style="color: #F92672;">import</span> otwrapy <span style="color: #F92672;">as</span> otw
+<span style="color: #F92672;">import</span> openturns <span style="color: #F92672;">as</span> ot
+<span style="color: #F8F8F2; background-color: #272822;">X</span> = otw.load_array(<span style="color: #E6DB74;">'InputSample.pklz'</span>)
+<span style="color: #F8F8F2; background-color: #272822;">X</span> = ot.NumericalSample(X)
 </pre>
 </div>
+
 
 </section>
 </section>
 <section>
-<section id="slide-orgheadline9">
-<h2 id="orgheadline9"><span class="section-number-2">5</span> Catch exceptions when your code fails</h2>
+<section id="slide-orgheadline10">
+<h2 id="orgheadline10"><span class="section-number-2">5</span> Catch exceptions when your code fails</h2>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">class</span> <span style="color: #66D9EF;">Wrapper</span>(ot.OpenTURNSPythonFunction):
@@ -282,8 +354,8 @@ Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy
 </section>
 </section>
 <section>
-<section id="slide-orgheadline10">
-<h2 id="orgheadline10"><span class="section-number-2">6</span> Creating a CLI for your wrapper</h2>
+<section id="slide-orgheadline11">
+<h2 id="orgheadline11"><span class="section-number-2">6</span> Creating a CLI for your wrapper</h2>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #F92672;">if</span> <span style="color: #F92672;">__name__</span> == <span style="color: #E6DB74;">'__main__'</span>:
@@ -315,10 +387,10 @@ Even better, use <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy
 </section>
 </section>
 <section>
-<section id="slide-orgheadline11">
-<h2 id="orgheadline11"><span class="section-number-2">7</span> Parallelizing the wrapper</h2>
+<section id="slide-orgheadline12">
+<h2 id="orgheadline12"><span class="section-number-2">7</span> Parallelizing the wrapper</h2>
 <p>
-Just let the magic happend with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> !!
+Just let the magic happen with <a href="http://felipeam86.github.io/otwrapy/_generated/otwrapy.Parallelizer.html">otwrapy.Parallelizer()</a> !!
 </p>
 
 <div class="org-src-container">
@@ -330,14 +402,12 @@ Just let the magic happend with <a href="http://felipeam86.github.io/otwrapy/_ge
 </section>
 </section>
 <section>
-<section id="slide-orgheadline12">
-<h2 id="orgheadline12"><span class="section-number-2">8</span> Conclusion</h2>
+<section id="slide-orgheadline13">
+<h2 id="orgheadline13"><span class="section-number-2"></span> Conclusion</h2>
 <ul>
-<li></li>
-
-<li></li>
-
-<li></li>
+<li><a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.PythonFunction.html#openturns.PythonFunction">ot.PythonFunction()</a> is a simpler alternative to
+<a href="http://doc.openturns.org/openturns-latest/sphinx/user_manual/_generated/openturns.OpenTURNSPythonFunction.html#openturns.OpenTURNSPythonFunction">ot.OpenTURNSPythonFunction()</a>, but you loose the ability to
+parameterize your wrapper when instantiating it.</li>
 
 <li></li>
 
@@ -350,16 +420,24 @@ Just let the magic happend with <a href="http://felipeam86.github.io/otwrapy/_ge
 </section>
 </section>
 <section>
-<section id="slide-orgheadline13">
-<h2 id="orgheadline13"><span class="section-number-2"></span> Thank you for your attention</h2>
+<section id="slide-orgheadline14">
+<h2 id="orgheadline14"><span class="section-number-2"></span> Thank you for your attention</h2>
 
 <div class="figure">
-<p><a href="http://www.phimeca.com/"><img src="LogoPhiHautBlanc.png" alt="LogoPhiHautBlanc.png" /></a>
+<p><a href="http://www.phimeca.com/"><img src="LogoPhiHaut-white.png" alt="LogoPhiHaut-white.png" /></a>
 </p>
 </div>
 
 <p>
-Felipe Aguirre Martinez - aguirre@phimeca.com
+Felipe Aguirre Martinez
+</p>
+
+<p>
+<a href="mailto:aguirre@phimeca.com">aguirre@phimeca.com</a>
+</p>
+
+<p>
+Github : <a href="https://github.com/felipeam86/otwrapy">otwrapy</a>
 </p>
 </section>
 </section>
@@ -402,6 +480,17 @@ dependencies: [
  { src: './reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
  { src: './reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
 });
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-76867657-2', 'auto');
+  ga('send', 'pageview');
+
 </script>
 </body>
 </html>
