@@ -99,6 +99,7 @@ def _exec(self, X):
     should come back to the preceding current directories.
   - Cleanup the temporary working directories upon exit. Or don't if
     you want a full backup of the simulations.
+  - Transfer necessary files needed by the external code
 - Example:
 
 #+BEGIN_SRC python
@@ -110,9 +111,9 @@ with otw.TempWorkDir(base_temp_work_dir='/tmp', prefix='run-', cleanup=True, tra
     Do stuff safely on an exclusive temporary directory and erase it afterwards
     ...
     """
-    # The current working directory is something like /tmp/pZYpzQ
+    # The current working directory is something like /tmp/run-pZYpzQ
 
-# Back on ~/beam-wrapper and /tmp/pZYpzQ does not exist anymore
+# Back on ~/beam-wrapper and /tmp/run-pZYpzQ does not exist anymore
 #+END_SRC
 
 ** Prepare the input parameters
