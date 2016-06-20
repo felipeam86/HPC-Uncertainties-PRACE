@@ -104,7 +104,7 @@ def _exec(self, X):
 #+BEGIN_SRC python
 import otwrapy as otw
 # I'm on a given dir, e.g. ~/beam-wrapper
-with otw.TempWorkDir(cleanup=True):
+with otw.TempWorkDir(base_temp_work_dir='/tmp', prefix='run-', cleanup=True, transfer=None):
     """
     ...
     Do stuff safely on an exclusive temporary directory and erase it afterwards
