@@ -180,6 +180,7 @@ three parts :
 should come back to the preceding current directories.</li>
 <li>Cleanup the temporary working directories upon exit. Or don't if
 you want a full backup of the simulations.</li>
+<li>Transfer necessary files needed by the external code</li>
 
 </ul></li>
 <li>Example:</li>
@@ -196,9 +197,9 @@ you want a full backup of the simulations.</li>
 <span style="color: #E6DB74;">    Do stuff safely on an exclusive temporary directory and erase it afterwards</span>
 <span style="color: #E6DB74;">    ...</span>
 <span style="color: #E6DB74;">    """</span>
-    <span style="color: #75715E;"># The current working directory is something like /tmp/pZYpzQ</span>
+    <span style="color: #75715E;"># The current working directory is something like /tmp/run-pZYpzQ</span>
 
-<span style="color: #75715E;"># </span><span style="color: #75715E;">Back on ~/beam-wrapper and /tmp/pZYpzQ does not exist anymore</span>
+<span style="color: #75715E;"># </span><span style="color: #75715E;">Back on ~/beam-wrapper and /tmp/run-pZYpzQ does not exist anymore</span>
 </pre>
 </div>
 
