@@ -84,7 +84,7 @@ def _exec(self, X):
         # Prepare the input
         self._prepare_input(X)
         # Run the external code
-        runtime = self._run_code(X)
+        self._run_code(X)
         # Parse the output parameters
         Y = self._parse_output()
 
